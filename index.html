@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Hutang - Terintegrasi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .bg-cyan-custom { background-color: #00E5FF; }
+        .bg-yellow-custom { background-color: #FFD600; }
+        .bg-green-custom { background-color: #B2FF59; }
+        
+        table, th, td {
+            border: 1px solid black !important;
+        }
+
+        /* Garis merah tebal setiap 5 baris */
+        .separator-row td {
+            border-bottom: 3px solid red !important;
+        }
+
+        table {
+            font-size: 10px;
+        }
+
+        th, td {
+            padding: 2px 4px !important;
+            line-height: 1.2;
+        }
+
+        .table-container {
+            max-height: 65vh; 
+            overflow-y: auto;
+            border-bottom: 1px solid black;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        thead tr:nth-child(2) th { top: 21px; }
+        thead tr:nth-child(3) th { top: 40px; }
+
+        .input-bayar {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 2px;
+            padding: 1px 2px;
+            font-size: 10px;
+            text-align: center;
+            color: #2563eb;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        input[type="date"], select, input[type="text"], input[type="number"] {
+            font-size: 9px;
+            padding: 1px;
+            width: 100%;
+            border-radius: 2px;
+            border: 1px solid #ccc;
+        }
+
+        .btn-action {
+            font-size: 8px;
+            font-weight: bold;
+            padding: 1px 4px;
+            border-radius: 2px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .nav-btn {
+            font-size: 9px;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .nav-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .select-periode {
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 2px;
+            border: 1px solid #ccc;
+            background-color: white;
+            text-transform: uppercase;
+            outline: none;
+        }
+
+        .total-mingguan {
+            font-size: 11px;
+            color: #b91c1c;
+            font-weight: 900;
+        }
+
+        .col-sisa { width: 80px; }
+        .col-nama { width: 140px; }
+        .col-minggu { width: 75px; }
+        .col-barang { width: 160px; }
+        .col-total-hutang { width: 100px; } 
+        .col-aksi { width: 120px; }
+
+        .nama-cell { text-align: left !important; padding-left: 6px !important; }
+
+        .modal-pin {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 300px;
+        }
+
+        /* Styling Struk Thermal */
+        #thermal-receipt-area {
+            font-family: 'Courier New', Courier, monospace;
+            width: 58mm;
+            background: white;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            
+            #thermal-receipt-area, #thermal-receipt-area * { visibility: visible !important; }
+            #thermal-receipt-area { 
+                display: block !important; 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 58mm; 
+            }
+
+            .no-print { display: none !important; }
+            table { font-size: 8px; width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid black !important; padding: 2px !important; }
+            .separator-row td { border-bottom: 2px solid red !important; }
+            .input-bayar { border: none !important; }
+            input[type="date"] { display: none !important; }
+            .btn-action, .col-aksi { display: none !important; }
+        }
+        
+        #print-area, #thermal-receipt-area { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 p-2 font-sans text-[10px]">
+
+    <!-- Login PIN -->
+    <div id="login-overlay" class="fixed inset-0 bg-gray-900 z-[100] flex items-center justify-center">
+        <div class="modal-pin border-2 border-blue-600">
+            <h2 class="font-bold text-lg mb-4 text-gray-800 uppercase">Masukkan PIN</h2>
+            <input type="password" id="pin-input" maxlength="6" class="w-full text-center text-2xl tracking-widest border-2 border-gray-300 rounded mb-4 p-2 focus:border-blue-500 outline-none" placeholder="******">
+            <button onclick="checkLoginPin()" class="bg-blue-600 text-white w-full py-2 rounded font-bold hover:bg-blue-700 shadow-md">LOGIN</button>
+            
+            <!-- Inisial Aplikasi -->
+            <div class="mt-4 border-t pt-3">
+                <p class="text-gray-500 text-[11px] font-bold tracking-tight uppercase">Pencatatan Global Versi 1.0.7</p>
+            </div>
+            
+            <p id="login-error" class="text-red-500 text-[10px] mt-2 hidden">PIN Salah! Silakan coba lagi.</p>
+        </div>
+    </div>
+    
+    <!-- Ganti PIN -->
+    <div id="change-pin-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[110] flex items-center justify-center p-2">
+        <div class="modal-pin border-2 border-purple-600">
+            <h2 class="font-bold text-sm mb-4 text-gray-800">GANTI PIN KEAMANAN</h2>
+            <div class="space-y-3">
+                <input type="password" id="old-pin" placeholder="PIN LAMA" class="w-full border p-2 text-center rounded">
+                <input type="password" id="new-pin" placeholder="PIN BARU" class="w-full border p-2 text-center rounded">
+                <input type="password" id="confirm-pin" placeholder="KONFIRMASI PIN BARU" class="w-full border p-2 text-center rounded">
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeChangePin()" class="bg-gray-400 text-white flex-1 py-2 rounded font-bold">BATAL</button>
+                <button onclick="processChangePin()" class="bg-purple-600 text-white flex-1 py-2 rounded font-bold">SIMPAN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pilihan Print -->
+    <div id="print-selection-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[120] flex items-center justify-center p-2">
+        <div class="modal-pin border-2 border-green-600 w-80">
+            <h2 class="font-bold text-sm mb-4 text-gray-800">PILIH PERIODE CETAK</h2>
+            <div class="space-y-3 mb-4">
+                <select id="print-bulan" class="w-full border p-2 text-center rounded uppercase font-bold text-xs"></select>
+                <select id="print-tahun" class="w-full border p-2 text-center rounded uppercase font-bold text-xs"></select>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closePrintModal()" class="bg-gray-400 text-white flex-1 py-2 rounded font-bold text-xs">BATAL</button>
+                <button onclick="generatePrintPDF()" class="bg-green-600 text-white flex-1 py-2 rounded font-bold text-xs">CETAK PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-area"></div>
+    <div id="thermal-receipt-area"></div>
+
+    <div id="main-content" class="max-w-[1400px] mx-auto bg-white p-1 shadow-md border border-black hidden">
+        
+        <div class="bg-gray-800 p-2 mb-2 rounded flex flex-wrap gap-2 items-center justify-between shadow-inner">
+            <div class="flex flex-wrap gap-1">
+                <button class="nav-btn bg-red-600 text-white" onclick="handleNav('RESET')">RESET DATA</button>
+                <button class="nav-btn bg-orange-500 text-white" onclick="openOrderModal('PAGI')">MINGGU PAGI</button>
+                <button class="nav-btn bg-blue-500 text-white" onclick="openOrderModal('SIANG')">MINGGU SIANG</button>
+                <button class="nav-btn bg-green-600 text-white" onclick="openPrintModal()">PRINT PDF (A4)</button>
+            </div>
+
+            <div class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded">
+                <span class="text-white text-[10px] font-bold">PERIODE:</span>
+                <select id="select-bulan" class="select-periode" onchange="changePeriode()">
+                    <option value="0">JANUARI</option><option value="1">FEBRUARI</option><option value="2">MARET</option>
+                    <option value="3" selected>APRIL</option><option value="4">MEI</option><option value="5">JUNI</option>
+                    <option value="6">JULI</option><option value="7">AGUSTUS</option><option value="8">SEPTEMBER</option>
+                    <option value="9">OKTOBER</option><option value="10">NOVEMBER</option><option value="11">DESEMBER</option>
+                </select>
+                <select id="select-tahun" class="select-periode" onchange="changePeriode()">                   
+                    <option value="2026">2025</option><option value="2027">2026</option>
+                    <option value="2028">2027</option><option value="2029">2028</option>
+                    <option value="2030">2029</option><option value="2030">2030</option>
+                </select>
+            </div>
+
+            <div class="flex flex-wrap gap-1">
+                <button class="nav-btn bg-purple-600 text-white" onclick="backupData()">BACKUP</button>
+                <button class="nav-btn bg-indigo-600 text-white" onclick="restoreData()">RESTORE</button>
+                <button class="nav-btn bg-gray-500 text-white" onclick="openChangePin()">GANTI PIN</button>
+                <button class="nav-btn bg-red-700 text-white" onclick="handleLogout()">LOGOUT</button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-2 px-1">
+            <div class="flex items-center gap-2">
+                <input type="text" id="search-input" placeholder="CARI NAMA..." 
+                       class="border border-gray-400 rounded px-2 py-1 text-[10px] w-48 uppercase font-bold focus:outline-none focus:border-blue-500"
+                       oninput="filterData()">
+                <button onclick="addNewRowInput()" class="bg-blue-700 text-white px-3 py-1 rounded font-bold text-[10px] hover:bg-blue-800">
+                    + KONSUMEN
+                </button>
+                <div class="h-6 w-[1px] bg-gray-300 mx-1"></div>
+                <button onclick="downloadMainTemplate()" class="bg-gray-600 text-white px-2 py-1 rounded font-bold text-[9px] hover:bg-gray-700">TEMPLATE EXCEL</button>
+                <button onclick="document.getElementById('import-main-file').click()" class="bg-indigo-600 text-white px-2 py-1 rounded font-bold text-[9px] hover:bg-indigo-700">IMPOR EXCEL</button>
+                <input type="file" id="import-main-file" class="hidden" accept=".xlsx,.xls" onchange="importMainExcel(this)">
+            </div>
+            <div class="font-black text-xs">RECORD: <span id="record-count">0</span></div>
+        </div>
+
+        <div class="table-container overflow-x-auto">
+            <table class="w-full text-center border-collapse uppercase font-bold" id="main-debt-table">
+                <thead>
+                    <tr>
+                        <th class="bg-cyan-custom py-1 col-sisa">SISA BULAN INI</th>
+                        <th id="total-sisa-global" class="bg-cyan-custom py-1 text-sm">Rp 0</th>
+                        <th colspan="5" class="bg-yellow-custom py-1 text-sm text-center uppercase">PEMBAYARAN MINGGUAN</th>
+                        <th colspan="3" class="bg-yellow-custom py-1" id="header-periode">APRIL-2025</th>
+                    </tr>
+                    <tr class="bg-gray-50 text-[9px]">
+                        <th class="bg-cyan-custom">SISA</th>
+                        <th class="bg-green-custom col-nama">NAMA KONSUMEN</th>
+                        <th class="bg-yellow-custom col-minggu" id="label-m1">M1</th>
+                        <th class="bg-yellow-custom col-minggu" id="label-m2">M2</th>
+                        <th class="bg-yellow-custom col-minggu" id="label-m3">M3</th>
+                        <th class="bg-yellow-custom col-minggu" id="label-m4">M4</th>
+                        <th class="bg-yellow-custom col-minggu" id="label-m5">M5</th>
+                        <th class="bg-yellow-custom col-barang">KETERANGAN BARANG</th>
+                        <th class="bg-yellow-custom col-total-hutang">HUTANG AWAL</th>
+                        <th class="bg-yellow-custom col-aksi">AKSI</th>
+                    </tr>
+                    <tr class="bg-yellow-50">
+                        <th class="py-1 text-[9px]">TOTAL MASUK:</th>
+                        <th class="py-1 bg-green-custom">-</th>
+                        <th class="py-1 total-mingguan bg-yellow-custom" id="total-col-1">Rp 0</th>
+                        <th class="py-1 total-mingguan bg-yellow-custom" id="total-col-2">Rp 0</th>
+                        <th class="py-1 total-mingguan bg-yellow-custom" id="total-col-3">Rp 0</th>
+                        <th class="py-1 total-mingguan bg-yellow-custom" id="total-col-4">Rp 0</th>
+                        <th class="py-1 total-mingguan bg-yellow-custom" id="total-col-5">Rp 0</th>
+                        <th colspan="3" class="bg-yellow-custom"></th> 
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Order Detail -->
+    <div id="order-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-2">
+        <div class="bg-white rounded shadow-2xl w-full max-w-[95%] h-[90vh] flex flex-col overflow-hidden border-2 border-gray-800">
+            <div class="bg-gray-800 p-2 flex justify-between items-center text-white">
+                <div class="flex items-center gap-3">
+                    <h3 class="font-bold text-xs uppercase tracking-widest" id="order-modal-title">DETAIL PESANAN</h3>
+                    <div class="h-4 w-[1px] bg-gray-500"></div>
+                    <button onclick="addNewOrderRow()" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[9px] font-bold">+ TAMBAH PESANAN</button>
+                    <button onclick="downloadOrderTemplate()" class="bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded text-[9px] font-bold">TEMPLATE EXCEL</button>
+                    <button onclick="document.getElementById('import-order-file').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[9px] font-bold">IMPOR EXCEL</button>
+                    <input type="file" id="import-order-file" class="hidden" accept=".xlsx,.xls" onchange="importOrderExcel(this)">
+                    <button onclick="printOrderTable()" class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-[9px] font-bold">PRINT TABEL</button>
+                </div>
+                <button onclick="closeOrderModal()" class="hover:text-red-400 font-black text-lg px-2">✕</button>
+            </div>
+            <div class="flex-1 overflow-auto p-1">
+                <table class="w-full text-center border-collapse uppercase font-bold text-[10px]" id="order-table">
+                    <thead class="bg-gray-100 sticky top-0 z-20">
+                        <tr>
+                            <th class="w-6 py-1">NO</th><th class="w-24">TANGGAL</th><th class="w-16">HARI</th><th class="w-12">JML</th>
+                            <th class="w-40">NAMA BARANG</th><th class="w-32">PEMESAN</th><th class="w-40">ALAMAT</th><th>KETERANGAN</th><th class="w-20">AKSI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const namaBulan = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
+        const PIN_KEY = "system_debt_pin";
+        const DEFAULT_PIN = "1234";
+        let currentOrderType = ""; // PAGI atau SIANG
+
+        function checkLoginPin() {
+            const input = document.getElementById('pin-input').value;
+            const savedPin = localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+            if (input === savedPin) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+                document.getElementById('pin-input').value = ""; 
+                updatePeriodeDisplay();
+                loadFromLocalStorage();
+            } else {
+                const err = document.getElementById('login-error');
+                err.classList.remove('hidden');
+                document.getElementById('pin-input').value = "";
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        }
+
+        function openChangePin() { document.getElementById('change-pin-modal').classList.remove('hidden'); }
+        function closeChangePin() { document.getElementById('change-pin-modal').classList.add('hidden'); }
+
+        function processChangePin() {
+            const oldPin = document.getElementById('old-pin').value;
+            const newPin = document.getElementById('new-pin').value;
+            const confPin = document.getElementById('confirm-pin').value;
+            const savedPin = localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+
+            if(oldPin !== savedPin) { alert("PIN Lama Salah!"); return; }
+            if(newPin.length < 4) { alert("PIN Baru minimal 4 digit!"); return; }
+            if(newPin !== confPin) { alert("Konfirmasi PIN tidak cocok!"); return; }
+
+            localStorage.setItem(PIN_KEY, newPin);
+            alert("PIN Berhasil diganti!");
+            closeChangePin();
+        }
+
+        function handleLogout() {
+            if (confirm("Apakah Anda yakin ingin Logout?")) {
+                document.getElementById('main-content').style.display = 'none';
+                document.getElementById('login-overlay').style.display = 'flex';
+                document.getElementById('pin-input').focus();
+            }
+        }
+
+        function toRp(angka) { 
+            return "Rp " + (parseInt(angka) || 0).toLocaleString('id-ID'); 
+        }
+
+        function getStorageKey(type, b, t) {
+            const bul = b !== undefined ? b : document.getElementById('select-bulan').value;
+            const tah = t !== undefined ? t : document.getElementById('select-tahun').value;
+            return `debt_${type}_${bul}_${tah}`;
+        }
+
+        function updatePeriodeDisplay() {
+            const bulanIdx = parseInt(document.getElementById('select-bulan').value);
+            const tahun = parseInt(document.getElementById('select-tahun').value);
+            document.getElementById('header-periode').innerText = `${namaBulan[bulanIdx]}-${tahun}`;
+            
+            const sundays = [];
+            const date = new Date(tahun, bulanIdx, 1);
+            while (date.getMonth() === bulanIdx) {
+                if (date.getDay() === 0) { 
+                    sundays.push(`${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`);
+                }
+                date.setDate(date.getDate() + 1);
+            }
+            for (let i = 1; i <= 5; i++) {
+                const label = document.getElementById(`label-m${i}`);
+                if (sundays[i - 1]) { 
+                    label.innerText = sundays[i - 1]; 
+                    label.classList.remove('opacity-30'); 
+                } else { 
+                    label.innerText = '-'; 
+                    label.classList.add('opacity-30'); 
+                }
+            }
+        }
+
+        function changePeriode() { 
+            updatePeriodeDisplay(); 
+            loadFromLocalStorage(); 
+        }
+
+        function loadFromLocalStorage() {
+            const currentBul = parseInt(document.getElementById('select-bulan').value);
+            const currentTah = parseInt(document.getElementById('select-tahun').value);
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+            
+            let currentData = JSON.parse(localStorage.getItem(getStorageKey('consumers')) || "[]");
+            
+            if (currentData.length === 0) {
+                let prevBul = currentBul === 0 ? 11 : currentBul - 1;
+                let prevTah = currentBul === 0 ? currentTah - 1 : currentTah;
+                const prevData = JSON.parse(localStorage.getItem(getStorageKey('consumers', prevBul, prevTah)) || "[]");
+                
+                prevData.forEach(item => {
+                    let totalBayar = item.bayar.reduce((acc, curr) => acc + (parseInt(curr.v) || 0), 0);
+                    let sisa = (parseInt(item.totalHutang) || 0) - totalBayar;
+                    if (sisa > 0) {
+                        currentData.push({
+                            nama: item.nama, 
+                            barang: item.barang, 
+                            totalHutang: sisa.toString(),
+                            bayar: [{v:"0",d:""},{v:"0",d:""},{v:"0",d:""},{v:"0",d:""},{v:"0",d:""}]
+                        });
+                    }
+                });
+                if(currentData.length > 0) saveState(currentData);
+            }
+            
+            currentData.forEach(item => renderRow(item));
+            refreshTableUI();
+        }
+
+        function renderRow(item) {
+            const tbody = document.getElementById('table-body');
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-total-hutang', item.totalHutang);
+            
+            let bayarHTML = "";
+            item.bayar.forEach((b, i) => {
+                bayarHTML += `<td>
+                    <input type="number" value="${b.v}" class="input-bayar" oninput="calculateAndSave()">
+                    <input type="date" value="${b.d}" onchange="calculateAndSave()">
+                </td>`;
+            });
+
+            tr.innerHTML = `
+                <td class="text-red-600 font-black sisa-cell">Rp 0</td>
+                <td class="bg-green-custom underline decoration-dotted nama-cell">${item.nama}</td>
+                ${bayarHTML}
+                <td class="bg-yellow-custom italic text-left px-2 barang-cell">${item.barang}</td>
+                <td class="bg-yellow-custom tot-hutang-display">${toRp(item.totalHutang)}</td>
+                <td class="col-aksi">
+                    <div class="grid grid-cols-2 gap-1">
+                        <button onclick="editRow(this)" class="btn-action bg-blue-600">EDIT</button>
+                        <button onclick="deleteRow(this)" class="btn-action bg-red-600">DEL</button>
+                        <button onclick="printThermal(this)" class="btn-action bg-green-700 col-span-2 py-[2px]">STRUK</button>
+                    </div>
+                </td>`;
+            tbody.appendChild(tr);
+        }
+
+        function calculateAndSave() {
+            calculateAll();
+            saveToLocalStorage();
+        }
+
+        function calculateAll() {
+            const rows = document.querySelectorAll('#table-body tr');
+            let columnTotals = [0, 0, 0, 0, 0]; 
+            let grandSisaTotal = 0;
+
+            rows.forEach(row => {
+                const totalHutang = parseInt(row.getAttribute('data-total-hutang')) || 0;
+                let rowBayarTotal = 0;
+                
+                for (let i = 0; i < 5; i++) {
+                    const input = row.cells[i+2].querySelector('.input-bayar');
+                    const val = input ? (parseInt(input.value) || 0) : 0;
+                    rowBayarTotal += val; 
+                    columnTotals[i] += val;
+                }
+                
+                const sisa = totalHutang - rowBayarTotal;
+                const sCell = row.querySelector('.sisa-cell');
+                if(sCell) { 
+                    sCell.innerText = toRp(sisa); 
+                    sCell.style.color = sisa <= 0 ? "green" : "red"; 
+                }
+                grandSisaTotal += sisa;
+            });
+
+            for (let i = 0; i < 5; i++) { 
+                document.getElementById(`total-col-${i + 1}`).innerText = toRp(columnTotals[i]); 
+            }
+            document.getElementById('total-sisa-global').innerText = toRp(grandSisaTotal);
+        }
+
+        function saveToLocalStorage() {
+            const rows = Array.from(document.querySelectorAll('#table-body tr'));
+            const data = rows.map(row => {
+                const nameCell = row.cells[1];
+                if (nameCell.querySelector('input')) return null;
+                
+                const bayarData = [];
+                for(let i=0; i<5; i++) {
+                    const inputVal = row.cells[i+2].querySelector('.input-bayar');
+                    const dateVal = row.cells[i+2].querySelector('input[type="date"]');
+                    bayarData.push({ 
+                        v: inputVal ? inputVal.value : "0", 
+                        d: dateVal ? dateVal.value : "" 
+                    });
+                }
+                return {
+                    nama: nameCell.innerText,
+                    bayar: bayarData,
+                    barang: row.cells[7].innerText,
+                    totalHutang: row.getAttribute('data-total-hutang') || "0"
+                };
+            }).filter(d => d !== null);
+            saveState(data);
+        }
+
+        function saveState(data) {
+            localStorage.setItem(getStorageKey('consumers'), JSON.stringify(data));
+        }
+
+        function refreshTableUI() {
+            const rows = document.querySelectorAll('#table-body tr');
+            let visibleIndex = 0;
+            rows.forEach((row) => {
+                row.classList.remove('separator-row');
+                if (row.style.display !== "none") {
+                    visibleIndex++;
+                    if (visibleIndex % 5 === 0) {
+                        row.classList.add('separator-row');
+                    }
+                }
+            });
+            document.getElementById('record-count').innerText = rows.length;
+            calculateAll();
+        }
+
+        function filterData() {
+            const query = document.getElementById('search-input').value.toUpperCase();
+            const rows = document.querySelectorAll('#table-body tr');
+            rows.forEach(row => {
+                const nameCell = row.cells[1];
+                const name = nameCell.querySelector('input') ? nameCell.querySelector('input').value : nameCell.innerText;
+                row.style.display = name.toUpperCase().includes(query) ? "" : "none";
+            });
+            refreshTableUI();
+        }
+
+        function addNewRowInput() {
+            const tbody = document.getElementById('table-body');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="sisa-cell">Rp 0</td>
+                <td class="bg-green-custom nama-cell"><input type="text" placeholder="NAMA" class="w-full bg-transparent border-b border-black outline-none uppercase font-bold"></td>
+                ${'<td><input type="number" class="input-bayar" value="0" oninput="calculateAll()"><input type="date"></td>'.repeat(5)}
+                <td class="bg-yellow-custom"><input type="text" placeholder="BARANG" class="w-full bg-transparent border-b border-black outline-none italic uppercase"></td>
+                <td class="bg-yellow-custom"><input type="number" class="input-tot-hutang w-full bg-transparent border-b border-black outline-none text-center font-bold" value="0" oninput="calculateAll()"></td>
+                <td><button onclick="saveNewRow(this)" class="btn-action bg-blue-600 w-full py-1">SIMPAN</button></td>`;
+            tbody.appendChild(tr);
+            tr.querySelector('input').focus();
+            refreshTableUI();
+        }
+
+        function saveNewRow(btn) {
+            const row = btn.closest('tr');
+            const name = row.cells[1].querySelector('input').value.toUpperCase();
+            const item = row.cells[7].querySelector('input').value.toUpperCase();
+            const total = row.querySelector('.input-tot-hutang').value;
+
+            if(!name) { alert("Nama harus diisi!"); return; }
+
+            const data = {
+                nama: name,
+                barang: item || "-",
+                totalHutang: total || "0",
+                bayar: []
+            };
+
+            for(let i=0; i<5; i++) {
+                data.bayar.push({
+                    v: row.cells[i+2].querySelector('.input-bayar').value || "0",
+                    d: row.cells[i+2].querySelector('input[type="date"]').value || ""
+                });
+            }
+
+            row.remove();
+            renderRow(data);
+            calculateAndSave();
+            refreshTableUI();
+        }
+
+        function editRow(btn) {
+            const row = btn.closest('tr');
+            const n = row.cells[1].innerText;
+            const b = row.cells[7].innerText;
+            const t = row.getAttribute('data-total-hutang');
+            
+            row.cells[1].innerHTML = `<input type="text" value="${n}" class="w-full bg-transparent border-b border-black outline-none uppercase font-bold">`;
+            row.cells[7].innerHTML = `<input type="text" value="${b}" class="w-full bg-transparent border-b border-black outline-none italic uppercase">`;
+            row.cells[8].innerHTML = `<input type="number" value="${t}" class="input-tot-hutang w-full bg-transparent border-b border-black outline-none text-center font-bold" oninput="calculateAll()">`;
+            row.cells[9].innerHTML = `<button onclick="saveNewRow(this)" class="btn-action bg-blue-600 w-full py-1">SIMPAN</button>`;
+        }
+
+        function deleteRow(btn) {
+            if(confirm("Hapus data konsumen ini?")) {
+                btn.closest('tr').remove();
+                calculateAndSave();
+                refreshTableUI();
+            }
+        }
+
+        function printThermal(btn) {
+            const row = btn.closest('tr');
+            const nama = row.cells[1].innerText;
+            const barang = row.cells[7].innerText;
+            const hutangAwal = parseInt(row.getAttribute('data-total-hutang')) || 0;
+            const sisaHutang = row.querySelector('.sisa-cell').innerText;
+            
+            let totalBayar = 0;
+            let listBayar = "";
+            for(let i=0; i<5; i++) {
+                const inputVal = row.cells[i+2].querySelector('.input-bayar');
+                const val = parseInt(inputVal ? inputVal.value : 0) || 0;
+                const tglVal = row.cells[i+2].querySelector('input[type="date"]');
+                const tgl = tglVal ? tglVal.value : "";
+                
+                if(val > 0) {
+                    totalBayar += val;
+                    listBayar += `M${i+1}: ${toRp(val)} ${tgl ? '('+tgl+')' : ''}\n`;
+                }
+            }
+
+            const headerBulan = document.getElementById('header-periode').innerText;
+            const now = new Date().toLocaleString('id-ID');
+
+            const receiptHTML = `
+                <div style="text-align:center; border-bottom:1px dashed black; padding-bottom:5px; margin-bottom:5px; width:58mm;">
+                    <strong style="font-size:14px;">STRUK PEMBAYARAN</strong><br>
+                    SISTEM MANAJEMEN HUTANG
+                </div>
+                <div style="font-size:10px; margin-bottom:5px; width:58mm;">
+                    Tgl Cetak: ${now}<br>
+                    Periode  : ${headerBulan}
+                </div>
+                <div style="border-bottom:1px dashed black; padding-bottom:5px; margin-bottom:5px; width:58mm;">
+                    <strong>KONSUMEN:</strong> ${nama}<br>
+                    <strong>BARANG  :</strong> ${barang}
+                </div>
+                <div style="margin-bottom:5px; width:58mm;">
+                    <strong>HUTANG AWAL:</strong> ${toRp(hutangAwal)}<br>
+                    <strong>DETAIL BAYAR:</strong><br>
+                    <pre style="font-family:inherit; margin:0; font-size:10px;">${listBayar || 'Belum ada pembayaran'}</pre>
+                </div>
+                <div style="border-top:1px dashed black; padding-top:5px; text-align:right; width:58mm;">
+                    <strong>TOTAL BAYAR: ${toRp(totalBayar)}</strong><br>
+                    <strong style="font-size:12px;">SISA HUTANG: ${sisaHutang}</strong>
+                </div>
+                <div style="text-align:center; margin-top:10px; font-size:9px; border-top:1px solid black; padding-top:5px; width:58mm;">
+                    Terima Kasih Atas Kerjasamanya
+                </div>
+            `;
+
+            document.getElementById('thermal-receipt-area').innerHTML = receiptHTML;
+            window.print();
+        }
+
+        // --- FUNGSI MODAL PESANAN (BARU/DIAKTIFKAN) ---
+
+        function openOrderModal(type) {
+            currentOrderType = type;
+            document.getElementById('order-modal-title').innerText = `DETAIL PESANAN MINGGU ${type}`;
+            document.getElementById('order-modal').classList.remove('hidden');
+            loadOrderData();
+        }
+
+        function closeOrderModal() { document.getElementById('order-modal').classList.add('hidden'); }
+
+        function loadOrderData() {
+            const tbody = document.getElementById('order-table-body');
+            tbody.innerHTML = "";
+            const key = getStorageKey(`orders_${currentOrderType}`);
+            const data = JSON.parse(localStorage.getItem(key) || "[]");
+            data.forEach((item, idx) => renderOrderRow(item, idx + 1));
+            refreshOrderTableUI();
+        }
+
+        function renderOrderRow(item, no) {
+            const tbody = document.getElementById('order-table-body');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="py-1">${no}</td>
+                <td><input type="date" value="${item.tgl || ''}" onchange="saveOrderData()"></td>
+                <td><input type="text" value="${item.hari || ''}" class="text-center" oninput="saveOrderData()"></td>
+                <td><input type="number" value="${item.jml || '0'}" class="text-center" oninput="saveOrderData()"></td>
+                <td><input type="text" value="${item.barang || ''}" class="text-left px-2" oninput="saveOrderData()"></td>
+                <td><input type="text" value="${item.pemesan || ''}" class="text-left px-2" oninput="saveOrderData()"></td>
+                <td><input type="text" value="${item.alamat || ''}" class="text-left px-2" oninput="saveOrderData()"></td>
+                <td><input type="text" value="${item.ket || ''}" class="text-left px-2" oninput="saveOrderData()"></td>
+                <td><button onclick="deleteOrderRow(this)" class="btn-action bg-red-600">HAPUS</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function addNewOrderRow() {
+            const tbody = document.getElementById('order-table-body');
+            const no = tbody.children.length + 1;
+            renderOrderRow({tgl:'', hari:'', jml:0, barang:'', pemesan:'', alamat:'', ket:''}, no);
+            refreshOrderTableUI();
+        }
+
+        function deleteOrderRow(btn) {
+            if(confirm("Hapus baris pesanan ini?")) {
+                btn.closest('tr').remove();
+                saveOrderData();
+                refreshOrderTableUI();
+            }
+        }
+
+        function saveOrderData() {
+            const rows = document.querySelectorAll('#order-table-body tr');
+            const data = Array.from(rows).map(row => {
+                const inputs = row.querySelectorAll('input');
+                return {
+                    tgl: inputs[0].value,
+                    hari: inputs[1].value,
+                    jml: inputs[2].value,
+                    barang: inputs[3].value,
+                    pemesan: inputs[4].value,
+                    alamat: inputs[5].value,
+                    ket: inputs[6].value
+                };
+            });
+            const key = getStorageKey(`orders_${currentOrderType}`);
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+
+        function refreshOrderTableUI() {
+            const rows = document.querySelectorAll('#order-table-body tr');
+            rows.forEach((row, idx) => {
+                row.cells[0].innerText = idx + 1;
+                row.classList.remove('separator-row');
+                if ((idx + 1) % 5 === 0) row.classList.add('separator-row');
+            });
+        }
+
+        function downloadOrderTemplate() {
+            const headers = [["TANGGAL", "HARI", "JML", "NAMA BARANG", "PEMESAN", "ALAMAT", "KETERANGAN"]];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(headers);
+            XLSX.utils.book_append_sheet(wb, ws, "OrderTemplate");
+            XLSX.writeFile(wb, `Template_Pesanan_${currentOrderType}.xlsx`);
+        }
+
+        function importOrderExcel(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                if (confirm(`Impor ${jsonData.length} data pesanan?`)) {
+                    const key = getStorageKey(`orders_${currentOrderType}`);
+                    const existing = JSON.parse(localStorage.getItem(key) || "[]");
+                    jsonData.forEach(row => {
+                        existing.push({
+                            tgl: row["TANGGAL"] || "",
+                            hari: row["HARI"] || "",
+                            jml: row["JML"] || 0,
+                            barang: row["NAMA BARANG"] || "",
+                            pemesan: row["PEMESAN"] || "",
+                            alamat: row["ALAMAT"] || "",
+                            ket: row["KETERANGAN"] || ""
+                        });
+                    });
+                    localStorage.setItem(key, JSON.stringify(existing));
+                    loadOrderData();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function printOrderTable() {
+            const rows = document.querySelectorAll('#order-table-body tr');
+            let rowsHTML = "";
+            rows.forEach((row, idx) => {
+                const inputs = row.querySelectorAll('input');
+                const isSep = (idx + 1) % 5 === 0 ? 'separator-row' : '';
+                rowsHTML += `<tr class="${isSep}">
+                    <td>${idx+1}</td>
+                    <td>${inputs[0].value}</td>
+                    <td>${inputs[1].value}</td>
+                    <td>${inputs[2].value}</td>
+                    <td align="left">${inputs[3].value}</td>
+                    <td align="left">${inputs[4].value}</td>
+                    <td align="left">${inputs[5].value}</td>
+                    <td align="left">${inputs[6].value}</td>
+                </tr>`;
+            });
+
+            const peri = document.getElementById('header-periode').innerText;
+            document.getElementById('print-area').innerHTML = `
+                <h2 style="text-align:center">DAFTAR PESANAN MINGGU ${currentOrderType} - ${peri}</h2>
+                <table style="width:100%">
+                    <tr style="background:#eee">
+                        <th>NO</th><th>TGL</th><th>HARI</th><th>JML</th><th>BARANG</th><th>PEMESAN</th><th>ALAMAT</th><th>KET</th>
+                    </tr>
+                    ${rowsHTML}
+                </table>`;
+            window.print();
+        }
+
+        // --- FUNGSI PRINT PDF & BACKUP (UTAMA) ---
+
+        function openPrintModal() {
+            const bSel = document.getElementById('print-bulan');
+            const tSel = document.getElementById('print-tahun');
+            bSel.innerHTML = ""; tSel.innerHTML = "";
+            namaBulan.forEach((b, i) => {
+                const opt = new Option(b, i);
+                if(i == document.getElementById('select-bulan').value) opt.selected = true;
+                bSel.add(opt);
+            });
+            for(let i=2024; i<=2030; i++) {
+                const opt = new Option(i, i);
+                if(i == document.getElementById('select-tahun').value) opt.selected = true;
+                tSel.add(opt);
+            }
+            document.getElementById('print-selection-modal').classList.remove('hidden');
+        }
+
+        function closePrintModal() { document.getElementById('print-selection-modal').classList.add('hidden'); }
+
+        function generatePrintPDF() {
+            const b = document.getElementById('print-bulan').value;
+            const t = document.getElementById('print-tahun').value;
+            const data = JSON.parse(localStorage.getItem(`debt_consumers_${b}_${t}`) || "[]");
+            if(data.length === 0) { alert("Data kosong!"); return; }
+
+            let rowsHTML = "";
+            let totals = [0,0,0,0,0];
+            let grandSisa = 0;
+
+            data.forEach((item, idx) => {
+                let rowBayar = item.bayar.reduce((acc, curr) => acc + (parseInt(curr.v) || 0), 0);
+                let sisa = (parseInt(item.totalHutang) || 0) - rowBayar;
+                grandSisa += sisa;
+                let payCells = "";
+                item.bayar.forEach((pay, i) => {
+                    totals[i] += (parseInt(pay.v) || 0);
+                    payCells += `<td>${pay.v > 0 ? pay.v : ''}</td>`;
+                });
+                const isSeparator = (idx + 1) % 5 === 0 ? 'separator-row' : '';
+                rowsHTML += `<tr class="${isSeparator}">
+                    <td style="color:${sisa > 0 ? 'red' : 'green'}; font-weight:bold">${toRp(sisa)}</td>
+                    <td align="left">${item.nama}</td>
+                    ${payCells}
+                    <td align="left">${item.barang}</td>
+                    <td>${toRp(item.totalHutang)}</td>
+                </tr>`;
+            });
+
+            document.getElementById('print-area').innerHTML = `
+                <h2 style="text-align:center; text-transform:uppercase">Laporan Hutang - ${namaBulan[b]} ${t}</h2>
+                <table style="width:100%">
+                    <tr class="bg-cyan-custom">
+                        <th>SISA</th><th>TOTAL SISA: ${toRp(grandSisa)}</th><th colspan="5">PEMBAYARAN</th><th colspan="2">PERIODE: ${namaBulan[b]}-${t}</th>
+                    </tr>
+                    <tr style="background:#eee">
+                        <th>SISA</th><th>NAMA</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th><th>BARANG</th><th>AWAL</th>
+                    </tr>
+                    <tr class="bg-yellow-custom">
+                        <th>TOTAL MASUK</th><th>-</th>
+                        ${totals.map(v => `<th>${toRp(v)}</th>`).join('')}
+                        <th colspan="2"></th>
+                    </tr>
+                    ${rowsHTML}
+                </table>`;
+            closePrintModal();
+            window.print();
+        }
+
+        function downloadMainTemplate() {
+            const headers = [["NAMA KONSUMEN", "MINGGU 1", "MINGGU 2", "MINGGU 3", "MINGGU 4", "MINGGU 5", "KETERANGAN BARANG", "HUTANG AWAL"]];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(headers);
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "Template_Sistem_Hutang.xlsx");
+        }
+
+        function importMainExcel(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                if (confirm(`Impor ${jsonData.length} data?`)) {
+                    const existingData = JSON.parse(localStorage.getItem(getStorageKey('consumers')) || "[]");
+                    jsonData.forEach(row => {
+                        existingData.push({
+                            nama: (row["NAMA KONSUMEN"] || "TANPA NAMA").toString().toUpperCase(),
+                            barang: (row["KETERANGAN BARANG"] || "-").toString().toUpperCase(),
+                            totalHutang: (row["HUTANG AWAL"] || 0).toString(),
+                            bayar: [{v: (row["MINGGU 1"] || 0).toString(), d: ""},{v: (row["MINGGU 2"] || 0).toString(), d: ""},{v: (row["MINGGU 3"] || 0).toString(), d: ""},{v: (row["MINGGU 4"] || 0).toString(), d: ""},{v: (row["MINGGU 5"] || 0).toString(), d: ""}]
+                        });
+                    });
+                    saveState(existingData);
+                    loadFromLocalStorage();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function backupData() {
+            const allData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                allData[key] = localStorage.getItem(key);
+            }
+            const blob = new Blob([JSON.stringify(allData)], {type: "application/json"});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `backup_hutang_${new Date().toLocaleDateString('id-ID')}.json`;
+            a.click();
+        }
+
+        function restoreData() {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            input.onchange = e => {
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (confirm("Restore data?")) {
+                            localStorage.clear();
+                            Object.keys(data).forEach(k => localStorage.setItem(k, data[k]));
+                            location.reload();
+                        }
+                    } catch(err) { alert("File tidak valid!"); }
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            input.click();
+        }
+
+        function handleNav(type) {
+            if(type === 'RESET' && confirm('Hapus semua data?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        window.onload = () => { document.getElementById('pin-input').focus(); };
+        document.getElementById('pin-input').addEventListener('keyup', (e) => { if(e.key === 'Enter') checkLoginPin(); });
+    </script>
+</body>
+</html>
