@@ -14,8 +14,8 @@
       "type": "image/png"
     },
     {
-      "src": "./logo_catatan_hutang.png",
-      "sizes": "512x512",
+      "src": "./icon_512X525.png",
+      "sizes": "512x525",
       "type": "image/png"
     }
   ]
