@@ -1,0 +1,22 @@
+{
+  "name": "Management Hutang",
+  "short_name": "Hutang",
+  "description": "Aplikasi Catatan Management Hutang",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "./logo_catatan_hutang.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./logo_catatan_hutang.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
