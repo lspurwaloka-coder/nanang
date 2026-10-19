@@ -9,12 +9,12 @@
   "theme_color": "#0f766e",
   "icons": [
     {
-      "src": "./logo_catatan_hutang.png",
+      "src": "./icons/logo_catatan_hutang.png",
       "sizes": "187x192",
       "type": "image/png"
     },
     {
-      "src": "./icon_512X525.png",
+      "src": "./icons/icon_512X525.png",
       "sizes": "512x525",
       "type": "image/png"
     }
